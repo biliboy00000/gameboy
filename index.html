@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0f172a">
+    <title>SéismoCardio - Mesure Cardiaque</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface-light: #334155;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            min-height: 100dvh;
+            overflow-x: hidden;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            padding: 24px 20px;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== ÉCRAN 1 : ACCUEIL ===== */
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            margin: 40px 0 24px;
+            box-shadow: 0 8px 32px rgba(59, 130, 246, 0.3);
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 15px;
+            text-align: center;
+            margin-bottom: 32px;
+            line-height: 1.5;
+        }
+
+        .card {
+            background: var(--surface);
+            border-radius: 20px;
+            padding: 20px;
+            width: 100%;
+            max-width: 380px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border);
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .instruction {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 14px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--text-muted);
+        }
+
+        .instruction:last-child {
+            margin-bottom: 0;
+        }
+
+        .instruction .num {
+            min-width: 28px;
+            height: 28px;
+            background: var(--surface-light);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--primary);
+            flex-shrink: 0;
+        }
+
+        .btn {
+            width: 100%;
+            max-width: 380px;
+            padding: 18px 24px;
+            border: none;
+            border-radius: 16px;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.97);
+            box-shadow: 0 2px 10px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), #dc2626);
+            color: white;
+            box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--surface-light);
+            color: var(--text);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 12px;
+        }
+
+        .status-waiting {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--warning);
+        }
+
+        .status-ok {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--success);
+        }
+
+        .status-error {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+        }
+
+        /* ===== ÉCRAN 2 : MESURE ===== */
+        .measure-header {
+            width: 100%;
+            max-width: 380px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            margin-top: 20px;
+        }
+
+        .timer {
+            font-size: 15px;
+            color: var(--text-muted);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .bpm-display {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .bpm-value {
+            font-size: 96px;
+            font-weight: 200;
+            line-height: 1;
+            background: linear-gradient(180deg, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .bpm-label {
+            font-size: 18px;
+            color: var(--text-muted);
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            width: 100%;
+            max-width: 380px;
+            margin-bottom: 24px;
+        }
+
+        .stat-box {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 16px;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--primary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .signal-indicator {
+            width: 100%;
+            max-width: 380px;
+            height: 120px;
+            background: var(--surface);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+
+        .signal-indicator canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .signal-quality {
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 10px;
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        .quality-good { color: var(--success); }
+        .quality-medium { color: var(--warning); }
+        .quality-poor { color: var(--danger); }
+
+        /* ===== ÉCRAN 3 : RÉSULTATS ===== */
+        .results-header {
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            margin-top: 20px;
+            margin-bottom: 24px;
+        }
+
+        .results-header h2 {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+
+        .results-header p {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .chart-container {
+            width: 100%;
+            max-width: 400px;
+            height: 280px;
+            background: var(--surface);
+            border-radius: 20px;
+            padding: 16px;
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+
+        .summary-card {
+            width: 100%;
+            max-width: 400px;
+            background: linear-gradient(135deg, var(--surface), var(--surface-light));
+            border-radius: 20px;
+            padding: 24px;
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .summary-row:last-child {
+            border-bottom: none;
+        }
+
+        .summary-label {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .summary-value {
+            font-size: 18px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .total-beats {
+            font-size: 48px;
+            font-weight: 200;
+            text-align: center;
+            margin: 8px 0;
+            background: linear-gradient(180deg, var(--success), #16a34a);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .total-label {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .buttons-row {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .buttons-row .btn {
+            flex: 1;
+            margin-top: 0;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .pulse-animation {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .heart-icon {
+            display: inline-block;
+            animation: heartbeat 0.8s ease-in-out infinite;
+        }
+
+        @keyframes heartbeat {
+            0%, 100% { transform: scale(1); }
+            15% { transform: scale(1.15); }
+            30% { transform: scale(1); }
+            45% { transform: scale(1.15); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- ÉCRAN 1 : ACCUEIL & PERMISSIONS        -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="screen-home" class="screen active">
+        <div class="logo">❤️</div>
+        <h1>SéismoCardio</h1>
+        <p class="subtitle">Mesurez votre fréquence cardiaque en plaçant votre iPhone sur votre poitrine.</p>
+
+        <div class="card">
+            <div class="card-title">Instructions</div>
+            <div class="instruction">
+                <span class="num">1</span>
+                <span>Allongez-vous confortablement sur le dos, bras le long du corps.</span>
+            </div>
+            <div class="instruction">
+                <span class="num">2</span>
+                <span>Placez votre iPhone à plat sur le sternum (milieu de la poitrine).</span>
+            </div>
+            <div class="instruction">
+                <span class="num">3</span>
+                <span>Restez immobile et respirez calmement pendant toute la mesure.</span>
+            </div>
+            <div class="instruction">
+                <span class="num">4</span>
+                <span>Appuyez sur "Démarrer" et gardez le téléphone en place.</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Permissions requises</div>
+            <p style="font-size: 14px; color: var(--text-muted); line-height: 1.6;">
+                Cette application utilise l'accéléromètre de votre iPhone pour détecter les micro-vibrations cardiaques. Aucune donnée n'est envoyée sur Internet.
+            </p>
+            <div id="permission-status" class="status-badge status-waiting">
+                <span>⏳</span> En attente d'autorisation
+            </div>
+        </div>
+
+        <button id="btn-start" class="btn btn-primary" onclick="requestPermission()">
+            <span>▶️</span> Démarrer la mesure
+        </button>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- ÉCRAN 2 : MESURE EN TEMPS RÉEL       -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="screen-measure" class="screen">
+        <div class="measure-header">
+            <div style="font-size: 16px; font-weight: 600;">Mesure en cours</div>
+            <div id="timer" class="timer">00:00</div>
+        </div>
+
+        <div class="bpm-display">
+            <div id="bpm-value" class="bpm-value">--</div>
+            <div class="bpm-label">BPM <span class="heart-icon">❤️</span></div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div id="total-beats" class="stat-value">0</div>
+                <div class="stat-label">Battements</div>
+            </div>
+            <div class="stat-box">
+                <div id="avg-bpm" class="stat-value">--</div>
+                <div class="stat-label">Moyenne</div>
+            </div>
+        </div>
+
+        <div class="signal-indicator">
+            <canvas id="signalCanvas"></canvas>
+            <div id="signal-quality" class="signal-quality quality-poor">Signal faible</div>
+        </div>
+
+        <button id="btn-stop" class="btn btn-danger" onclick="stopMeasurement()">
+            <span>⏹</span> Arrêter la mesure
+        </button>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- ÉCRAN 3 : RÉSULTATS                  -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="screen-results" class="screen">
+        <div class="results-header">
+            <h2>Résultats</h2>
+            <p id="session-duration">Durée de la session : 0 min 0 s</p>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="resultsChart"></canvas>
+        </div>
+
+        <div class="summary-card">
+            <div class="total-label">Total de battements détectés</div>
+            <div id="final-total" class="total-beats">0</div>
+
+            <div class="summary-row">
+                <span class="summary-label">BPM minimum</span>
+                <span id="min-bpm" class="summary-value">--</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">BPM maximum</span>
+                <span id="max-bpm" class="summary-value">--</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">BPM moyen</span>
+                <span id="mean-bpm" class="summary-value">--</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">Durée totale</span>
+                <span id="total-duration" class="summary-value">--</span>
+            </div>
+        </div>
+
+        <div class="buttons-row">
+            <button class="btn btn-secondary" onclick="resetApp()">
+                <span>🔄</span> Nouvelle
+            </button>
+            <button class="btn btn-primary" onclick="shareResults()">
+                <span>📤</span> Partager
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════
+        // CONFIGURATION & CONSTANTES
+        // ═══════════════════════════════════════════════════════
+        const SAMPLE_RATE = 60;           // Hz (estimation iOS Safari)
+        const BUFFER_SIZE = 300;          // 5 secondes de buffer
+        const MIN_INTERVAL_MS = 300;      // 200 BPM max
+        const MAX_INTERVAL_MS = 2000;     // 30 BPM min
+        const BPM_UPDATE_INTERVAL = 2000; // ms entre mises à jour BPM affiché
+        const CHART_POINT_INTERVAL = 2000;  // ms entre points du graphique final
+
+        // ═══════════════════════════════════════════════════════
+        // ÉTAT GLOBAL
+        // ═══════════════════════════════════════════════════════
+        let isMeasuring = false;
+        let startTime = null;
+        let totalBeats = 0;
+        let bpmHistory = [];        // [{time: ms, bpm: number}]
+        let intervalHistory = [];   // intervalles entre pics en ms
+        let lastPeakTime = 0;
+        let currentBPM = 0;
+        let avgBPM = 0;
+
+        // Buffers circulaires pour le traitement du signal
+        let rawZ = new Array(BUFFER_SIZE).fill(0);
+        let rawX = new Array(BUFFER_SIZE).fill(0);
+        let rawY = new Array(BUFFER_SIZE).fill(0);
+        let filtered = new Array(BUFFER_SIZE).fill(0);
+        let bufferIndex = 0;
+
+        // Filtre biquad (passe-bande 0.8-3 Hz, Q=2, Fe=60Hz)
+        // Coefficients pré-calculés pour Butterworth bandpass
+        const b0 = 0.0522, b1 = 0, b2 = -0.0522;
+        const a1 = -1.7786, a2 = 0.8956;
+        let z1 = 0, z2 = 0;  // États du filtre
+
+        // Canvas pour le signal en temps réel
+        let signalCanvas, signalCtx;
+        let signalWidth, signalHeight;
+
+        // Timer
+        let timerInterval = null;
+        let bpmUpdateInterval = null;
+        let chartPointInterval = null;
+
+        // Chart.js instance
+        let resultsChart = null;
+
+        // ═══════════════════════════════════════════════════════
+        // UTILITAIRES
+        // ═══════════════════════════════════════════════════════
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const s = (seconds % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
+        }
+
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // DEMANDE DE PERMISSION (iOS 13+)
+        // ═══════════════════════════════════════════════════════
+        async function requestPermission() {
+            const btn = document.getElementById('btn-start');
+            const status = document.getElementById('permission-status');
+
+            btn.disabled = true;
+            btn.style.opacity = '0.6';
+
+            try {
+                // iOS 13+ requiert une permission explicite
+                if (typeof DeviceMotionEvent !== 'undefined' && 
+                    typeof DeviceMotionEvent.requestPermission === 'function') {
+                    
+                    const response = await DeviceMotionEvent.requestPermission();
+                    
+                    if (response === 'granted') {
+                        status.className = 'status-badge status-ok';
+                        status.innerHTML = '<span>✅</span> Autorisation accordée';
+                        setTimeout(() => startMeasurement(), 800);
+                    } else {
+                        status.className = 'status-badge status-error';
+                        status.innerHTML = '<span>❌</span> Permission refusée';
+                        btn.disabled = false;
+                        btn.style.opacity = '1';
+                    }
+                } else {
+                    // Android ou iOS < 13 : pas de permission requise
+                    status.className = 'status-badge status-ok';
+                    status.innerHTML = '<span>✅</span> Prêt à démarrer';
+                    setTimeout(() => startMeasurement(), 500);
+                }
+            } catch (err) {
+                console.error('Erreur permission:', err);
+                status.className = 'status-badge status-error';
+                status.innerHTML = '<span>⚠️</span> Erreur : ' + err.message;
+                btn.disabled = false;
+                btn.style.opacity = '1';
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // DÉMARRAGE DE LA MESURE
+        // ═══════════════════════════════════════════════════════
+        function startMeasurement() {
+            // Réinitialisation
+            isMeasuring = true;
+            startTime = Date.now();
+            totalBeats = 0;
+            bpmHistory = [];
+            intervalHistory = [];
+            lastPeakTime = 0;
+            currentBPM = 0;
+            avgBPM = 0;
+            bufferIndex = 0;
+            z1 = 0; z2 = 0;
+
+            rawZ.fill(0);
+            rawX.fill(0);
+            rawY.fill(0);
+            filtered.fill(0);
+
+            // UI
+            document.getElementById('bpm-value').textContent = '--';
+            document.getElementById('total-beats').textContent = '0';
+            document.getElementById('avg-bpm').textContent = '--';
+            document.getElementById('signal-quality').textContent = 'Signal faible';
+            document.getElementById('signal-quality').className = 'signal-quality quality-poor';
+
+            showScreen('screen-measure');
+
+            // Initialisation du canvas de signal
+            signalCanvas = document.getElementById('signalCanvas');
+            signalCtx = signalCanvas.getContext('2d');
+            const rect = signalCanvas.getBoundingClientRect();
+            signalCanvas.width = rect.width * window.devicePixelRatio;
+            signalCanvas.height = rect.height * window.devicePixelRatio;
+            signalCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            signalWidth = rect.width;
+            signalHeight = rect.height;
+
+            // Timer
+            timerInterval = setInterval(updateTimer, 1000);
+
+            // Mise à jour périodique du BPM affiché
+            bpmUpdateInterval = setInterval(updateBPMDisplay, BPM_UPDATE_INTERVAL);
+
+            // Points pour le graphique final
+            chartPointInterval = setInterval(recordChartPoint, CHART_POINT_INTERVAL);
+
+            // Enregistrement du listener DeviceMotion
+            window.addEventListener('devicemotion', handleMotion);
+
+            // Premier point du graphique (t=0)
+            recordChartPoint();
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // TRAITEMENT DU SIGNAL (DeviceMotion)
+        // ═══════════════════════════════════════════════════════
+        function handleMotion(event) {
+            if (!isMeasuring) return;
+
+            const acc = event.accelerationIncludingGravity;
+            if (!acc) return;
+
+            // Extraction des axes (en m/s²)
+            const x = acc.x || 0;
+            const y = acc.y || 0;
+            const z = acc.z || 0;
+
+            // Stockage dans le buffer circulaire
+            rawX[bufferIndex] = x;
+            rawY[bufferIndex] = y;
+            rawZ[bufferIndex] = z;
+
+            // ── FILTRAGE BIQUAD PASSE-BANDE ──
+            // Soustraction du bruit respiratoire (axes X/Y corrélés)
+            const noiseEstimate = (x + y) * 0.3;
+            const zCorrected = z - noiseEstimate;
+
+            // Filtre biquad (forme directe II transposée)
+            const input = zCorrected;
+            const output = b0 * input + z1;
+            z1 = b1 * input + z2 - a1 * output;
+            z2 = b2 * input - a2 * output;
+
+            filtered[bufferIndex] = output;
+
+            // ── DÉTECTION DE PIC ──
+            // On regarde 3 échantillons consécutifs : [prev2, prev1, current]
+            const i = bufferIndex;
+            const prev1 = (i - 1 + BUFFER_SIZE) % BUFFER_SIZE;
+            const prev2 = (i - 2 + BUFFER_SIZE) % BUFFER_SIZE;
+
+            const y_curr = filtered[i];
+            const y_prev1 = filtered[prev1];
+            const y_prev2 = filtered[prev2];
+
+            // Condition de pic : y_prev1 est un maximum local
+            if (y_prev1 > y_prev2 && y_prev1 > y_curr) {
+                // Calcul de la moyenne et écart-type sur la fenêtre glissante
+                const windowSize = 60; // 1 seconde
+                let sum = 0, sumSq = 0, count = 0;
+                for (let j = 0; j < windowSize; j++) {
+                    const idx = (i - j + BUFFER_SIZE) % BUFFER_SIZE;
+                    const val = filtered[idx];
+                    sum += val;
+                    sumSq += val * val;
+                    count++;
+                }
+                const mean = sum / count;
+                const variance = (sumSq / count) - (mean * mean);
+                const std = Math.sqrt(Math.max(variance, 0.0001));
+
+                // Seuil : le pic doit dépasser mean + 1.5 * std
+                const threshold = mean + 1.5 * std;
+
+                if (y_prev1 > threshold) {
+                    const now = Date.now();
+                    const interval = now - lastPeakTime;
+
+                    // Validation de l'intervalle (anti-rebond)
+                    if (interval >= MIN_INTERVAL_MS && interval <= MAX_INTERVAL_MS) {
+                        totalBeats++;
+                        intervalHistory.push(interval);
+                        lastPeakTime = now;
+
+                        // Calcul BPM instantané
+                        const instantBPM = Math.round(60000 / interval);
+                        currentBPM = instantBPM;
+
+                        // Moyenne glissante des 5 derniers intervalles
+                        if (intervalHistory.length >= 5) {
+                            const recent = intervalHistory.slice(-5);
+                            const avgInterval = recent.reduce((a, b) => a + b, 0) / 5;
+                            avgBPM = Math.round(60000 / avgInterval);
+                        } else if (intervalHistory.length > 0) {
+                            const avgInterval = intervalHistory.reduce((a, b) => a + b, 0) / intervalHistory.length;
+                            avgBPM = Math.round(60000 / avgInterval);
+                        }
+
+                        // Mise à jour UI immédiate du compteur
+                        document.getElementById('total-beats').textContent = totalBeats;
+                    } else if (lastPeakTime === 0) {
+                        // Premier pic détecté
+                        lastPeakTime = now;
+                    }
+                }
+            }
+
+            bufferIndex = (bufferIndex + 1) % BUFFER_SIZE;
+
+            // Dessin du signal en temps réel (tous les 3 échantillons pour performance)
+            if (bufferIndex % 3 === 0) {
+                drawSignal();
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // AFFICHAGE DU SIGNAL EN TEMPS RÉEL
+        // ═══════════════════════════════════════════════════════
+        function drawSignal() {
+            const ctx = signalCtx;
+            const w = signalWidth;
+            const h = signalHeight;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Fond
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(0, 0, w, h);
+
+            // Ligne de référence
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, h / 2);
+            ctx.lineTo(w, h / 2);
+            ctx.stroke();
+
+            // Tracé du signal filtré
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            const pointsToDraw = Math.min(BUFFER_SIZE, w);
+            const startIdx = (bufferIndex - pointsToDraw + BUFFER_SIZE) % BUFFER_SIZE;
+
+            // Calcul de l'échelle auto
+            let maxAmp = 0.001;
+            for (let i = 0; i < pointsToDraw; i++) {
+                const idx = (startIdx + i) % BUFFER_SIZE;
+                maxAmp = Math.max(maxAmp, Math.abs(filtered[idx]));
+            }
+
+            // Mise à jour de la qualité du signal
+            updateSignalQuality(maxAmp);
+
+            for (let i = 0; i < pointsToDraw; i++) {
+                const idx = (startIdx + i) % BUFFER_SIZE;
+                const x = (i / pointsToDraw) * w;
+                const y = (h / 2) - (filtered[idx] / (maxAmp * 1.5)) * (h / 2.5);
+
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Points de pics détectés
+            ctx.fillStyle = '#ef4444';
+            for (let i = 1; i < pointsToDraw - 1; i++) {
+                const idx = (startIdx + i) % BUFFER_SIZE;
+                const prev = (idx - 1 + BUFFER_SIZE) % BUFFER_SIZE;
+                const next = (idx + 1) % BUFFER_SIZE;
+
+                if (filtered[idx] > filtered[prev] && filtered[idx] > filtered[next] && filtered[idx] > 0.5 * maxAmp) {
+                    const x = (i / pointsToDraw) * w;
+                    const y = (h / 2) - (filtered[idx] / (maxAmp * 1.5)) * (h / 2.5);
+                    ctx.beginPath();
+                    ctx.arc(x, y, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        function updateSignalQuality(amplitude) {
+            const el = document.getElementById('signal-quality');
+            // Seuil empirique basé sur l'amplitude du signal filtré
+            if (amplitude > 0.15) {
+                el.textContent = 'Signal excellent';
+                el.className = 'signal-quality quality-good';
+            } else if (amplitude > 0.05) {
+                el.textContent = 'Signal correct';
+                el.className = 'signal-quality quality-medium';
+            } else {
+                el.textContent = 'Signal faible';
+                el.className = 'signal-quality quality-poor';
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // MISES À JOUR PÉRIODIQUES
+        // ═══════════════════════════════════════════════════════
+        function updateTimer() {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            document.getElementById('timer').textContent = formatTime(elapsed);
+        }
+
+        function updateBPMDisplay() {
+            if (avgBPM > 0) {
+                document.getElementById('bpm-value').textContent = avgBPM;
+                document.getElementById('avg-bpm').textContent = avgBPM;
+            }
+        }
+
+        function recordChartPoint() {
+            if (!isMeasuring) return;
+            const elapsed = Date.now() - startTime;
+            const bpmToRecord = avgBPM > 0 ? avgBPM : (currentBPM > 0 ? currentBPM : 0);
+            bpmHistory.push({
+                time: Math.round(elapsed / 1000),
+                bpm: bpmToRecord
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // ARRÊT DE LA MESURE
+        // ═══════════════════════════════════════════════════════
+        function stopMeasurement() {
+            isMeasuring = false;
+
+            // Nettoyage des intervals
+            clearInterval(timerInterval);
+            clearInterval(bpmUpdateInterval);
+            clearInterval(chartPointInterval);
+
+            // Suppression du listener
+            window.removeEventListener('devicemotion', handleMotion);
+
+            // Dernier point
+            recordChartPoint();
+
+            // Affichage des résultats
+            showResults();
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // AFFICHAGE DES RÉSULTATS
+        // ═══════════════════════════════════════════════════════
+        function showResults() {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+
+            // Filtrer les BPM valides (> 0)
+            const validBPMs = bpmHistory.filter(p => p.bpm > 0).map(p => p.bpm);
+
+            const minBPM = validBPMs.length > 0 ? Math.min(...validBPMs) : '--';
+            const maxBPM = validBPMs.length > 0 ? Math.max(...validBPMs) : '--';
+            const meanBPM = validBPMs.length > 0 
+                ? Math.round(validBPMs.reduce((a, b) => a + b, 0) / validBPMs.length) 
+                : '--';
+
+            // Mise à jour de l'UI
+            document.getElementById('session-duration').textContent = 
+                `Durée de la session : ${minutes} min ${seconds} s`;
+            document.getElementById('final-total').textContent = totalBeats;
+            document.getElementById('min-bpm').textContent = minBPM !== '--' ? minBPM + ' BPM' : '--';
+            document.getElementById('max-bpm').textContent = maxBPM !== '--' ? maxBPM + ' BPM' : '--';
+            document.getElementById('mean-bpm').textContent = meanBPM !== '--' ? meanBPM + ' BPM' : '--';
+            document.getElementById('total-duration').textContent = formatTime(elapsed);
+
+            // Création du graphique Chart.js
+            createResultsChart();
+
+            showScreen('screen-results');
+        }
+
+        function createResultsChart() {
+            const ctx = document.getElementById('resultsChart').getContext('2d');
+
+            // Détruire l'ancien graphique s'il existe
+            if (resultsChart) {
+                resultsChart.destroy();
+            }
+
+            const labels = bpmHistory.map(p => {
+                const m = Math.floor(p.time / 60);
+                const s = (p.time % 60).toString().padStart(2, '0');
+                return `${m}:${s}`;
+            });
+            const data = bpmHistory.map(p => p.bpm > 0 ? p.bpm : null);
+
+            resultsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'BPM',
+                        data: data,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#3b82f6',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 1,
+                        fill: true,
+                        tension: 0.4,
+                        spanGaps: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1e293b',
+                            titleColor: '#94a3b8',
+                            bodyColor: '#f8fafc',
+                            borderColor: '#334155',
+                            borderWidth: 1,
+                            padding: 10,
+                            callbacks: {
+                                label: (ctx) => `${ctx.parsed.y} BPM`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: '#334155', drawBorder: false },
+                            ticks: { color: '#94a3b8', font: { size: 10 }, maxTicksLimit: 8 }
+                        },
+                        y: {
+                            grid: { color: '#334155', drawBorder: false },
+                            ticks: { color: '#94a3b8', font: { size: 10 } },
+                            suggestedMin: 40,
+                            suggestedMax: 120
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // RÉINITIALISATION
+        // ═══════════════════════════════════════════════════════
+        function resetApp() {
+            // Réinitialiser les variables
+            isMeasuring = false;
+            totalBeats = 0;
+            bpmHistory = [];
+            intervalHistory = [];
+            currentBPM = 0;
+            avgBPM = 0;
+
+            // Réinitialiser l'UI
+            document.getElementById('btn-start').disabled = false;
+            document.getElementById('btn-start').style.opacity = '1';
+            document.getElementById('permission-status').className = 'status-badge status-waiting';
+            document.getElementById('permission-status').innerHTML = '<span>⏳</span> En attente d\'autorisation';
+
+            showScreen('screen-home');
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // PARTAGE DES RÉSULTATS
+        // ═══════════════════════════════════════════════════════
+        async function shareResults() {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            const validBPMs = bpmHistory.filter(p => p.bpm > 0).map(p => p.bpm);
+            const meanBPM = validBPMs.length > 0 
+                ? Math.round(validBPMs.reduce((a, b) => a + b, 0) / validBPMs.length) 
+                : '--';
+
+            const text = `🫀 SéismoCardio - Résultats\n\n` +
+                `❤️ Total de battements : ${totalBeats}\n` +
+                `📊 BPM moyen : ${meanBPM}\n` +
+                `⏱️ Durée : ${minutes} min ${seconds} s\n\n` +
+                `Mesure réalisée avec l'accéléromètre de mon iPhone 📱`;
+
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: 'SéismoCardio - Résultats',
+                        text: text
+                    });
+                } catch (err) {
+                    // L'utilisateur a annulé
+                }
+            } else {
+                // Fallback : copier dans le presse-papiers
+                navigator.clipboard.writeText(text).then(() => {
+                    alert('Résultats copiés dans le presse-papiers !');
+                }).catch(() => {
+                    alert(text);
+                });
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // GESTION DU REDIMENSIONNEMENT
+        // ═══════════════════════════════════════════════════════
+        window.addEventListener('resize', () => {
+            if (signalCanvas && isMeasuring) {
+                const rect = signalCanvas.getBoundingClientRect();
+                signalCanvas.width = rect.width * window.devicePixelRatio;
+                signalCanvas.height = rect.height * window.devicePixelRatio;
+                signalCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+                signalWidth = rect.width;
+                signalHeight = rect.height;
+            }
+        });
+    </script>
+</body>
+</html>
