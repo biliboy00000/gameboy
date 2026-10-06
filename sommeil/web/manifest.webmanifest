@@ -1,0 +1,10 @@
+{
+  "name": "Somno — sommeil avec un iPhone",
+  "short_name": "Somno",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0b1020",
+  "theme_color": "#05070d",
+  "lang": "fr",
+  "icons": [{ "src": "assets/icon-180.png", "sizes": "180x180", "type": "image/png" }]
+}

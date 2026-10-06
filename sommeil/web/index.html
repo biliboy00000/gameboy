@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#05070d">
+<title>Somno — sommeil avec un iPhone</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<!-- ============================================================ ACCUEIL -->
+<section id="home" class="screen active">
+  <header class="top">
+    <div class="brand"><span class="moon">☾</span> Somno</div>
+    <button class="ghost small" data-go="history">Historique</button>
+  </header>
+  <p class="lead">Suivi du sommeil avec un seul iPhone : respiration, battements cardiaques et mouvements captés par le matelas, sons de la nuit, stades estimés.</p>
+  <div id="last-night" class="card hidden"></div>
+  <button class="primary big" data-go="setup">Commencer la nuit</button>
+  <div class="row-links">
+    <button class="ghost" data-go="setup" data-check="1">Tester le placement</button>
+    <button class="ghost" data-go="about">Comment ça marche</button>
+  </div>
+  <label class="ghost small import">Importer un fichier .somno<input type="file" id="file-import" accept=".somno,application/octet-stream" hidden></label>
+  <p class="fine">Tout reste sur l'iPhone. Aucune donnée n'est envoyée.</p>
+</section>
+
+<!-- ============================================================ PRÉPARATION -->
+<section id="setup" class="screen">
+  <header class="top">
+    <button class="ghost small" data-go="home">‹ Retour</button>
+    <div class="title">Préparer la nuit</div>
+    <span></span>
+  </header>
+
+  <div class="card">
+    <div class="card-title">Où poser l'iPhone ?</div>
+    <label class="choice">
+      <input type="radio" name="place" value="mattress" checked>
+      <div><b>Sur le matelas</b> <span class="tag">recommandé</span>
+        <small>À plat, sous le drap-housse ou sous l'oreiller, au niveau de la poitrine, à 10–30 cm du corps. Mesure respiration, pouls (ballistocardiographie) et mouvements.</small></div>
+    </label>
+    <label class="choice">
+      <input type="radio" name="place" value="nightstand">
+      <div><b>Sur la table de nuit — sonar</b> <span class="tag exp">expérimental</span>
+        <small>Haut-parleur et micro tournés vers vous, à moins d'1 m. L'iPhone émet des ultrasons (18–20,5 kHz) et suit le mouvement de votre poitrine par écho. Certains animaux les entendent.</small></div>
+    </label>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Options</div>
+    <label class="toggle"><span>Sons de la nuit (ronflements, bruits)</span><input type="checkbox" id="opt-audio" checked></label>
+    <label class="toggle"><span>Garder de courts extraits sonores</span><input type="checkbox" id="opt-clips" checked></label>
+    <label class="toggle"><span>Sonar ultrasonore</span><input type="checkbox" id="opt-sonar"></label>
+    <label class="toggle"><span>Réveil intelligent</span><input type="checkbox" id="opt-alarm"></label>
+    <div id="alarm-cfg" class="alarm hidden">
+      Entre <input type="time" id="alarm-from" value="06:30"> et <input type="time" id="alarm-to" value="07:00">
+      <small>Sonne pendant un sommeil léger ou un réveil spontané, au plus tard à la fin de la fenêtre.</small>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Avant de dormir</div>
+    <ul class="check">
+      <li>Branchez le chargeur (l'écran reste allumé toute la nuit, en noir).</li>
+      <li>Activez « Ne pas déranger » et baissez la luminosité au minimum.</li>
+      <li>Laissez Safari ouvert sur cette page, sans verrouiller l'iPhone.</li>
+    </ul>
+  </div>
+
+  <div id="check" class="card">
+    <div class="card-title">Vérification du signal <small id="check-time"></small></div>
+    <canvas id="check-wave" class="wave"></canvas>
+    <div class="check-grid">
+      <div><span id="chk-rate">–</span><small>capteurs (Hz)</small></div>
+      <div><span id="chk-rr">–</span><small>respirations/min</small></div>
+      <div><span id="chk-hr">–</span><small>battements/min</small></div>
+    </div>
+    <p id="check-msg" class="fine">Allongez-vous, iPhone en place, et restez immobile une minute.</p>
+    <button id="btn-check" class="secondary">Lancer la vérification</button>
+  </div>
+
+  <button id="btn-start" class="primary big">Démarrer l'enregistrement</button>
+  <p id="setup-err" class="err hidden"></p>
+</section>
+
+<!-- ============================================================ NUIT -->
+<section id="night" class="screen dark">
+  <div class="night-center">
+    <div id="clock" class="clock">--:--</div>
+    <div id="elapsed" class="elapsed">00:00</div>
+    <div id="night-status" class="night-status">Enregistrement…</div>
+  </div>
+  <div id="night-controls" class="night-controls">
+    <button id="btn-stop" class="hold">Maintenir pour terminer la nuit</button>
+    <div id="alarm-info" class="fine"></div>
+  </div>
+</section>
+
+<!-- ============================================================ ANALYSE -->
+<section id="analyzing" class="screen">
+  <div class="center">
+    <div class="spinner"></div>
+    <p id="progress">Analyse de la nuit…</p>
+  </div>
+</section>
+
+<!-- ============================================================ RAPPORT -->
+<section id="report" class="screen">
+  <header class="top">
+    <button class="ghost small" data-go="home">‹ Accueil</button>
+    <div class="title" id="rep-title">Nuit</div>
+    <button class="ghost small" id="btn-export">Exporter</button>
+  </header>
+  <div id="rep-body"></div>
+</section>
+
+<!-- ============================================================ HISTORIQUE -->
+<section id="history" class="screen">
+  <header class="top">
+    <button class="ghost small" data-go="home">‹ Accueil</button>
+    <div class="title">Historique</div>
+    <span></span>
+  </header>
+  <canvas id="trend" class="trend"></canvas>
+  <div id="hist-list"></div>
+</section>
+
+<!-- ============================================================ À PROPOS -->
+<section id="about" class="screen">
+  <header class="top">
+    <button class="ghost small" data-go="home">‹ Retour</button>
+    <div class="title">Comment ça marche</div>
+    <span></span>
+  </header>
+  <div class="card prose">
+    <p><b>Respiration.</b> Posé sur le matelas, l'iPhone s'incline de quelques centièmes de degré à chaque inspiration. Le gyroscope et l'accéléromètre captent cette inclinaison ; une analyse en composantes principales extrait l'onde respiratoire.</p>
+    <p><b>Cœur.</b> À chaque battement, l'éjection du sang fait « reculer » le corps et vibrer le matelas (ballistocardiographie, 4–12 Hz). Le rythme est suivi par autocorrélation toutes les 5 s.</p>
+    <p><b>Stades.</b> Toutes les 30 s, 70 caractéristiques (rythme et régularité respiratoires, fréquence cardiaque et sa variabilité, mouvements, moment de la nuit) alimentent un modèle entraîné sur 300 nuits de polysomnographie réelles (PhysioNet), puis lissé par un modèle de Markov.</p>
+    <p><b>Limites.</b> Sans électroencéphalogramme, aucun appareil grand public ne « voit » les stades directement : ils sont estimés. L'indice d'événements respiratoires est un signal d'alerte, pas un diagnostic d'apnée du sommeil.</p>
+  </div>
+</section>
+
+<div id="toast" class="toast hidden"></div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

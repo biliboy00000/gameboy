@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+analysis/results/*.npy
+web/tests/node_modules/
+ios/*.xcodeproj/
