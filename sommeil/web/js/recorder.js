@@ -165,10 +165,11 @@ export class Recorder {
     this.lastClipT = -1e9;
     if (opts.sonar) {
       this.sonar = new SonarOnline(this.ctx.sampleRate, (r) => {
+        this.lastSonar = r;
         const data = new Float32Array(r.disp.length * 2);
         data.set(r.disp, 0);
         data.set(r.act, r.disp.length);
-        store.putChunk({ night: this.night.id, kind: 'sonar', seq: r.epoch, n: r.disp.length, bin: r.bin, distM: r.distM, data });
+        if (!this.dry) store.putChunk({ night: this.night.id, kind: 'sonar', seq: r.epoch, n: r.disp.length, bin: r.bin, distM: r.distM, data });
         this.onLive({ sonar: { epoch: r.epoch, distM: r.distM } });
       });
     }
@@ -194,7 +195,7 @@ export class Recorder {
     } else if (m.type === 'sonar') {
       this.sonar?.push(m.re, m.im);
     } else if (m.type === 'clip') {
-      store.putClip({ night: this.night.id, t: m.id, rate: m.rate, data: m.data });
+      if (!this.dry) store.putClip({ night: this.night.id, t: m.id, rate: m.rate, data: m.data });
     }
   }
 
@@ -202,6 +203,7 @@ export class Recorder {
     if (!this.audioBuf?.length) return;
     const data = Float32Array.from(this.audioBuf);
     this.audioBuf = [];
+    if (this.dry) return;
     store.putChunk({ night: this.night.id, kind: 'audio', seq: this.seq.audio++, n: data.length / 8, data });
   }
 

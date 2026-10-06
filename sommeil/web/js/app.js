@@ -1,9 +1,9 @@
 // Contrôleur de l'application Somno.
 import { Recorder, requestMotionPermission, FS } from './recorder.js';
 import * as store from './storage.js';
-import { analyzeNight, loadModel, stageProba, STAGES } from './night.js';
-import { phoneFeatures, liveRespRate, bcgHeartRate } from './analysis.js';
-import { median } from './dsp.js';
+import { analyzeNight, loadModel, stageProba } from './night.js';
+import { phoneFeatures, liveRespRate, bcgHeartRate, respChannelsFromSignal } from './analysis.js';
+import { median, hannSpectrum } from './dsp.js';
 import * as charts from './charts.js';
 import { exportCsv, exportJson, exportRaw, playClip } from './export.js';
 import { importSomno } from './import.js';
@@ -93,7 +93,10 @@ $('#btn-check').addEventListener('click', async () => {
   if (checker) { stopCheck(); return; }
   if (!(await requestMotionPermission())) { toast('Accès aux capteurs de mouvement refusé.'); return; }
   checker = new Recorder({});
-  await checker.start({ dry: true, audio: false });
+  const o = options();
+  try {
+    await checker.start({ dry: true, audio: o.sonar, sonar: o.sonar });
+  } catch (e) { toast('Vérification impossible : ' + e.message); checker = null; return; }
   $('#btn-check').textContent = 'Arrêter la vérification';
   const t0 = Date.now();
   checkTimer = setInterval(() => liveCheck(t0), 2000);
@@ -122,8 +125,31 @@ function liveSignal(rec, seconds) {
   };
 }
 
+/** Fréquence respiratoire d'après la dernière époque sonar (déplacement thoracique). */
+function sonarRate(rec) {
+  const r = rec?.lastSonar;
+  if (!r) return null;
+  const fr = rec.ctx.sampleRate / 1024;
+  const w = respChannelsFromSignal(Float64Array.from(r.disp), fr)[0];
+  const p = hannSpectrum(w, 1024);
+  let best = 0, bv = -1;
+  for (let k = 0; k < p.length; k++) { const f = (k * 10) / 1024; if (f >= 0.1 && f <= 0.7 && p[k] > bv) { bv = p[k]; best = k; } }
+  return { rr: (60 * best * 10) / 1024, distM: r.distM, ptp: Math.max(...r.disp) - Math.min(...r.disp), wave: w };
+}
+
 function liveCheck(t0) {
   const s = checker.motionStats();
+  if (checker.opts.sonar) {
+    const so = sonarRate(checker);
+    $('#chk-rate').textContent = s.rateHz ? Math.round(s.rateHz) : '–';
+    $('#check-time').textContent = `${Math.round((Date.now() - t0) / 1000)} s`;
+    if (!so) { $('#check-msg').textContent = 'Sonar : écoute des échos… (premier résultat après ~50 s)'; return; }
+    charts.wave($('#check-wave'), so.wave);
+    $('#chk-rr').textContent = Math.round(so.rr);
+    $('#check-msg').textContent = `Sonar : mouvement suivi à ${so.distM.toFixed(2)} m (amplitude ${so.ptp.toFixed(1)} mm). `
+      + (so.ptp > 1 ? '✓ Respiration visible.' : 'Mouvement faible : rapprochez l\'iPhone et orientez le bas (haut-parleur) vers votre poitrine.');
+    return;
+  }
   $('#chk-rate').textContent = s.rateHz ? Math.round(s.rateHz) : '–';
   $('#check-time').textContent = `${Math.round((Date.now() - t0) / 1000)} s`;
   const L = liveSignal(checker, 120);
@@ -175,11 +201,12 @@ function tickNight() {
   $('#elapsed').textContent = `${String(Math.floor(el / 3600)).padStart(2, '0')}:${String(Math.floor((el % 3600) / 60)).padStart(2, '0')}`;
   if (Date.now() - lastStatus > 30000 && recorder.nTotal > FS * 40) {
     lastStatus = Date.now();
-    const L = liveSignal(recorder, 90);
+    const L = recorder.opts.sonar ? { ready: false } : liveSignal(recorder, 90);
     const parts = [];
     if (L.ready && L.rr) parts.push(`${Math.round(L.rr)} resp/min`);
     if (L.ready && L.hr) parts.push(`${Math.round(L.hr)} bpm`);
-    if (recorder.sonarDist) parts.push(`sonar ${recorder.sonarDist.toFixed(2)} m`);
+    const so = recorder.opts.sonar ? sonarRate(recorder) : null;
+    if (so) parts.push(`sonar ${so.distM.toFixed(2)} m · ${Math.round(so.rr)} resp/min`);
     if (recorder.night.gaps.length) parts.push(`${recorder.night.gaps.length} interruption(s)`);
     $('#night-status').textContent = parts.join(' · ') || 'Enregistrement…';
   }
@@ -221,7 +248,7 @@ async function runAnalysis(id) {
     notifyNative(rep);
     showReport(rep);
   } catch (e) {
-    console.error(e);
+    console.warn(e);
     toast('Analyse impossible : ' + (e.message || e), 6000);
     go('home');
   }
@@ -333,9 +360,10 @@ async function showReport(rep) {
     <div class="card">
       <div class="card-title">Respiration <small>${m.rrMean ? m.rrMean.toFixed(1) + ' /min en moyenne' : ''}</small></div>
       <canvas id="c-rr" class="series"></canvas>
-      <p class="note">Événements respiratoires (chute d'amplitude ≥ 50 % pendant ≥ 10 s) : <b>${m.rdi.toFixed(1)} / h</b> (${m.respEvents}).
-      ${m.rdi >= 15 ? '<span class="warn">Valeur élevée : si vous ronflez, êtes fatigué le jour ou avez des pauses respiratoires, parlez-en à un médecin.</span>' : ''}
-      Indicateur de dépistage, pas un diagnostic.</p>
+      ${m.ahiEst != null ? `<p class="note">Indice d'apnées-hypopnées estimé : <b>${m.ahiEst.toFixed(0)} / h</b>
+      ${m.ahiEst >= 15 ? '<span class="warn">— au-dessus de 15 (apnée modérée ou plus). Si vous ronflez, êtes fatigué le jour ou si l\'on vous a vu cesser de respirer, parlez-en à un médecin.</span>' : '(sous le seuil de 15).'}
+      En validation sur 300 nuits : repère 80 % des apnées modérées à sévères, 27 % de fausses alertes. Dépistage, pas un diagnostic.</p>` : ''}
+      <p class="note">Chutes d'amplitude respiratoire ≥ 50 % pendant ≥ 10 s : ${m.respEvents} (${m.dropIndex.toFixed(1)} / h).</p>
     </div>
     <div class="card">
       <div class="card-title">Cœur <small>${m.hrMean ? Math.round(m.hrMean) + ' bpm en moyenne · min ' + Math.round(m.hrMin) : 'non mesuré'}</small></div>
@@ -434,4 +462,3 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catc
 window.addEventListener('beforeunload', (e) => { if (recorder) { e.preventDefault(); e.returnValue = ''; } });
 renderHome();
 loadModel().catch(() => toast('Modèle de stades introuvable.'));
-export { STAGES };

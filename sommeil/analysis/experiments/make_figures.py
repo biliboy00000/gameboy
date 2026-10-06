@@ -178,23 +178,20 @@ def fig_example():
 
 
 def fig_apnea():
-    r = load("e04_apnea.json")
+    r = load("e04b_apnea_ml.json")
     if not r:
         return
-    s = r["summary"]
-    best = max((k for k in s if k.startswith("hyb") and s[k]), key=lambda k: s[k]["auc15"], default=None)
-    if not best:
-        return
-    ns = [x for x in r["nights"] if best in x]
-    ahi = np.array([x["ahi"] for x in ns])
-    est = np.array([x[best] for x in ns])
-    fig, ax = plt.subplots(figsize=(5.2, 4.2))
+    ml = r["iphone"]
+    ahi, est = np.array(ml["ahi"]), np.array(ml["est_cal"])
+    fig, ax = plt.subplots(figsize=(5.6, 4.4))
     ax.scatter(ahi, est, s=14, color=BLUE, alpha=0.7, edgecolors="none")
+    lim = max(ahi.max(), est.max()) * 1.05
+    ax.plot([0, lim], [0, lim], color=MUTED, lw=1)
     ax.axvline(15, color=ORANGE, lw=1, ls="--")
+    ax.axhline(15, color=ORANGE, lw=1, ls="--")
     ax.set_xlabel("IAH de la polysomnographie (événements/h)")
-    ax.set_ylabel("indice estimé par l'iPhone (/h)")
-    ss = s[best]
-    ax.set_title(f"Apnées : ρ = {ss['spearman']:.2f}, AUC (IAH ≥ 15) = {ss['auc15']:.2f}", fontsize=10)
+    ax.set_ylabel("IAH estimé par l'iPhone (/h)")
+    ax.set_title(f"Apnées : ρ = {ml['spearman']:.2f}, AUC (IAH ≥ 15) = {ml['auc15']:.2f}", fontsize=10)
     fig.tight_layout()
     fig.savefig(os.path.join(FIG, "e04_apnees.png"), dpi=130)
     plt.close(fig)

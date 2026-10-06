@@ -92,10 +92,11 @@ def run(job):
 
 
 def main():
+    workers = int(sys.argv[1]) if len(sys.argv) > 1 else 4
     files = sorted(glob.glob("/home/user/data/c18/*.npz"))[7::60][:5]
     jobs = [(f, d, nz, bl, 1000 + i) for i, (f, d, nz, bl) in
             enumerate(itertools.product(files, DISTS, NOISE, BLANKET))]
-    with ProcessPoolExecutor(4) as ex:
+    with ProcessPoolExecutor(workers) as ex:
         res = list(ex.map(run, jobs))
     out = os.path.join(os.path.dirname(__file__), "..", "results", "e02_sonar.json")
     json.dump(res, open(out, "w"), indent=1)

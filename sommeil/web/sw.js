@@ -1,8 +1,8 @@
 // Service worker : l'application fonctionne hors ligne (la nuit, sans réseau).
-const CACHE = 'somno-v1';
+const CACHE = 'somno-v2';
 const FILES = [
   './', 'index.html', 'css/app.css', 'manifest.webmanifest', 'assets/blank.mp4', 'assets/icon-180.png',
-  'model/staging.json',
+  'model/staging.json', 'model/apnea.json',
   'js/app.js', 'js/analysis.js', 'js/apnea.js', 'js/audio-worklet.js', 'js/charts.js', 'js/dsp.js',
   'js/export.js', 'js/import.js', 'js/model.js', 'js/night.js', 'js/recorder.js', 'js/seqmodel.js', 'js/sonar.js', 'js/storage.js',
 ];

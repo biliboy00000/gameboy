@@ -190,9 +190,9 @@ export function analyzeResp(chans) {
 // ============================================================ cœur (BCG)
 export const FS_ENV = 25, SUB_S = 10, STEP_S = 5, HR_MIN = 38, HR_MAX = 150;
 
-export function bcgEnvelopes(motion, fs) {
+export function bcgEnvelopes(motion, fs, lo = 4.0, hi = 12.0) {
   return motion.map((m) => {
-    const x = filtfilt(m, fs, 4.0, Math.min(12.0, 0.45 * fs), 2);
+    const x = filtfilt(m, fs, lo, Math.min(hi, 0.45 * fs), 2);
     const sq = x.map((v) => v * v);
     const e = resampleLinear(filtfilt(sq, fs, null, 2.5, 2), fs, FS_ENV);
     const med = median(e.map(Math.abs));
@@ -421,22 +421,42 @@ export function phoneFeatures(acc, gyro, fs = 50) {
   return { feats, nEp, resp, heart, activity: act, moving };
 }
 
-/** Estimation « en direct » (vérification du placement, écran de nuit) : fréquence
- *  respiratoire par pic spectral sur les dernières winS secondes de l'onde ACP. */
+/** Estimation « en direct » (vérification du placement, écran de nuit) : ACP sur tout
+ *  l'extrait (bords de filtrage exclus) puis pic spectral sur les dernières winS secondes. */
 export function liveRespRate(acc, gyro, fs, winS = 60) {
-  const rc = motionToRespChannels(acc, gyro, fs);
-  const w = pcaWaveform(rc);
+  // sur un extrait court, la dérive basse fréquence (intégration du gyroscope) domine :
+  // bande resserrée 0,13–0,7 Hz (8–42 resp/min) avant l'ACP
+  const rc = motionToRespChannels(acc, gyro, fs).map((x) => filtfilt(x, FS_R, 0.13, 0.7, 2));
+  const n = rc[0].length, c = rc.length;
+  const a = Math.min(n, 5 * FS_R), b = Math.max(a, n - 3 * FS_R);
+  if (b - a < 25 * FS_R) return { rr: null, conc: 0, wave: new Float64Array(0) };
+  const cov = Array.from({ length: c }, () => new Array(c).fill(0));
+  for (let i = 0; i < c; i++) for (let j = i; j < c; j++) {
+    let s = 0;
+    for (let k = a; k < b; k++) s += rc[i][k] * rc[j][k];
+    cov[i][j] = cov[j][i] = s / (b - a);
+  }
+  const { vals, vecs } = eighSym(cov);
+  let best = 0;
+  for (let i = 1; i < c; i++) if (vals[i] > vals[best]) best = i;
+  const w = new Float64Array(b - a);
+  for (let k = a; k < b; k++) { let s = 0; for (let i = 0; i < c; i++) s += rc[i][k] * vecs[i][best]; w[k - a] = s; }
   const seg = w.slice(Math.max(0, w.length - winS * FS_R));
-  if (seg.length < 20 * FS_R) return { rr: null, conc: 0, wave: seg };
+  // tendance linéaire retirée : sur un extrait court, la dérive basse fréquence fausserait le pic
+  const m = seg.length;
+  let sx = 0, sy = 0, sxx = 0, sxy = 0;
+  for (let i = 0; i < m; i++) { sx += i; sy += seg[i]; sxx += i * i; sxy += i * seg[i]; }
+  const slope = (m * sxy - sx * sy) / (m * sxx - sx * sx), icpt = (sy - slope * sx) / m;
+  for (let i = 0; i < m; i++) seg[i] -= icpt + slope * i;
   const nfft = 1024;
   const p = hannSpectrum(seg, nfft);
-  let best = -1, bv = -1, tot = 0;
+  let bk = -1, bv = -1, tot = 0;
   for (let k = 0; k < p.length; k++) {
     const f = (k * FS_R) / nfft;
-    if (f >= 0.1 && f <= 0.7) { tot += p[k]; if (p[k] > bv) { bv = p[k]; best = k; } }
+    if (f >= 0.13 && f <= 0.7) { tot += p[k]; if (p[k] > bv) { bv = p[k]; bk = k; } }
   }
   if (tot <= 0) return { rr: null, conc: 0, wave: seg };
   let near = 0;
-  for (let k = 0; k < p.length; k++) if (Math.abs(k - best) * FS_R / nfft <= 0.04) near += p[k];
-  return { rr: (60 * parabolicPeak(p, best) * FS_R) / nfft, conc: near / tot, wave: seg };
+  for (let k = 0; k < p.length; k++) if (Math.abs(k - bk) * FS_R / nfft <= 0.04) near += p[k];
+  return { rr: (60 * parabolicPeak(p, bk) * FS_R) / nfft, conc: near / tot, wave: seg };
 }

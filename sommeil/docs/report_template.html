@@ -1,0 +1,422 @@
+<title>Somno</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Mise en page : colonne de lecture étroite, graphiques plus larges ; papier de polysomnographie le jour, chambre noire la nuit */
+:root {
+  --bg: #f7f6f1;
+  --panel: #ffffff;
+  --ink: #141a2b;
+  --ink-2: #4a5068;
+  --ink-3: #7d8298;
+  --rule: #e3e1d8;
+  --grid: #ecebe4;
+  --accent: #2a5bd7;
+  --iphone: #2a78d6;
+  --psg: #eb6834;
+  --third: #1baf7a;
+  --wake: #e0a21c;
+  --rem: #9a6ff0;
+  --light: #5fa8ff;
+  --deep: #2443a8;
+  --heat-lo: #e9f0fb;
+  --heat-hi: #1d4fa3;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+  --font-body: "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0a0e1a; --panel: #111729; --ink: #e9ecf7; --ink-2: #a9b0c8; --ink-3: #7a819c;
+    --rule: #222a42; --grid: #1a2136; --accent: #7c9dff; --iphone: #3987e5; --psg: #d95926; --third: #199e70;
+    --wake: #f2b84b; --rem: #b48cff; --light: #5fa8ff; --deep: #4b6fe0; --heat-lo: #16213b; --heat-hi: #5b8ff0;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0a0e1a; --panel: #111729; --ink: #e9ecf7; --ink-2: #a9b0c8; --ink-3: #7a819c;
+  --rule: #222a42; --grid: #1a2136; --accent: #7c9dff; --iphone: #3987e5; --psg: #d95926; --third: #199e70;
+  --wake: #f2b84b; --rem: #b48cff; --light: #5fa8ff; --deep: #4b6fe0; --heat-lo: #16213b; --heat-hi: #5b8ff0;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 16px/1.6 var(--font-body); }
+.wrap { max-width: 1000px; margin: 0 auto; padding-inline: 20px; padding-block: 36px 80px; }
+.read { max-width: 68ch; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; letter-spacing: -0.015em; margin: 0; }
+h1 { font-size: clamp(2.6rem, 7vw, 4.4rem); font-weight: 700; line-height: 1; }
+h2 { font-size: clamp(1.5rem, 3.2vw, 2rem); font-weight: 700; line-height: 1.15; margin-bottom: 12px; }
+h3 { font-size: 1.1rem; font-weight: 500; margin-bottom: 6px; }
+p { margin: 0 0 12px; color: var(--ink-2); }
+p strong, li strong { color: var(--ink); font-weight: 600; }
+.eyebrow { font: 500 12px/1.4 var(--font-data); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 10px; }
+.lede { font-size: 1.15rem; color: var(--ink-2); max-width: 60ch; margin-top: 14px; }
+section { margin-top: 64px; display: grid; gap: 16px; }
+.mono, .num { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.hero { display: grid; gap: 20px; }
+.figure { background: var(--panel); border: 1px solid var(--rule); border-radius: 14px; padding: 18px; min-width: 0; }
+.figure figcaption { font-size: 13px; color: var(--ink-3); margin-top: 10px; }
+.chart { width: 100%; display: block; overflow: visible; }
+.scroll { overflow-x: auto; margin-inline: -4px; padding-inline: 4px; }
+.scroll .chart { min-width: 640px; }
+.chart text { fill: var(--ink-3); font: 11px var(--font-data); }
+.chart .lab { fill: var(--ink-2); font: 12px var(--font-body); }
+.chart .val { fill: var(--ink); font: 500 11px var(--font-data); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.tile { border-top: 2px solid var(--ink); padding-top: 10px; min-width: 0; }
+.tile .big { font: 700 2.2rem/1.1 var(--font-display); letter-spacing: -0.02em; }
+.tile .big small { font: 500 0.95rem var(--font-data); color: var(--ink-3); margin-left: 4px; letter-spacing: 0; }
+.tile p { font-size: 14px; margin: 4px 0 0; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.three { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.place { border: 1px solid var(--rule); border-radius: 14px; padding: 16px; background: var(--panel); display: grid; gap: 8px; align-content: start; }
+.place p { font-size: 14px; margin: 0; }
+.pill { display: inline-block; font: 500 11px/1 var(--font-data); padding: 5px 8px; border-radius: 999px; border: 1px solid var(--rule); color: var(--ink-2); margin-right: 4px; }
+.pill.ok { border-color: color-mix(in srgb, var(--third) 60%, transparent); color: var(--third); }
+.pill.exp { border-color: color-mix(in srgb, var(--wake) 60%, transparent); color: var(--wake); }
+.table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 14px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font: 500 11px var(--font-data); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); }
+tr:last-child td { border-bottom: 0; }
+td.stars { font-family: var(--font-data); color: var(--accent); white-space: nowrap; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--ink-2); margin-top: 8px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--bg); font: 12px/1.4 var(--font-data); padding: 6px 8px; border-radius: 6px; z-index: 5; max-width: 260px; }
+ul.plain { margin: 0; padding-left: 18px; color: var(--ink-2); }
+ul.plain li { margin: 6px 0; }
+code { font-family: var(--font-data); font-size: 0.88em; background: var(--grid); padding: 1px 5px; border-radius: 4px; color: var(--ink); }
+.steps { counter-reset: s; display: grid; gap: 10px; padding: 0; margin: 0; list-style: none; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 30px 1fr; gap: 8px; color: var(--ink-2); }
+.steps li::before { content: counter(s); font: 500 13px/28px var(--font-data); width: 28px; height: 28px; text-align: center; border: 1px solid var(--rule); border-radius: 50%; color: var(--ink); }
+.note { font-size: 13px; color: var(--ink-3); }
+@media (prefers-reduced-motion: no-preference) { .hyp-bar { transition: opacity .2s; } }
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <div>
+      <div class="eyebrow">Exploration · prototype · validation sur 300 nuits de polysomnographie</div>
+      <h1>Somno</h1>
+      <p class="lede">Suivre son sommeil avec <strong>un seul iPhone 14 Pro</strong>, posé sur le matelas : la respiration par l'inclinaison du matelas, le cœur par ballistocardiographie, les mouvements, les sons, et les stades estimés par un modèle entraîné sur de vraies nuits de laboratoire.</p>
+    </div>
+    <figure class="figure" style="margin:0">
+      <div class="eyebrow" id="hero-cap"></div>
+      <div class="scroll"><svg class="chart" id="hero" viewBox="0 0 960 250" role="img" aria-label="Hypnogrammes PSG et iPhone de la nuit médiane"></svg></div>
+      <div class="legend"><span><i style="background:var(--wake)"></i>Éveil</span><span><i style="background:var(--rem)"></i>REM</span><span><i style="background:var(--light)"></i>Léger (N1-N2)</span><span><i style="background:var(--deep)"></i>Profond (N3)</span></div>
+      <figcaption>Nuit de rang médian dans la validation croisée, sur 300 nuits jamais vues par le modèle. En haut, les stades scorés par des experts sur l'EEG. En bas, l'estimation à partir de ce qu'un iPhone sur le matelas aurait enregistré.</figcaption>
+    </figure>
+    <div class="tiles" id="tiles"></div>
+  </header>
+
+  <section>
+    <div class="read">
+      <div class="eyebrow">Inventaire</div>
+      <h2>Ce que l'iPhone peut sentir la nuit</h2>
+      <p>Aucun appareil grand public n'enregistre l'activité cérébrale. Montres, bagues et capteurs de lit estiment les stades à partir de signaux qui changent avec eux. Le sommeil profond se voit à une respiration très régulière et un pouls bas et stable. Le REM se voit à une respiration irrégulière et à l'absence de mouvements. L'éveil se voit aux mouvements. Voici ce que chaque capteur de l'iPhone 14 Pro peut apporter, et par quelle porte on y accède.</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Capteur</th><th>Ce qu'il mesure la nuit</th><th>Safari</th><th>App native</th><th>Intérêt</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Gyroscope</strong></td><td>vitesse d'inclinaison du matelas → angle respiratoire ; BCG rotationnel</td><td>~60 Hz</td><td>100 Hz</td><td class="stars">●●●</td></tr>
+          <tr><td><strong>Accéléromètre</strong></td><td>gravité projetée (1–9 mg par respiration) ; secousse cardiaque ; mouvements</td><td>~60 Hz</td><td>100 Hz</td><td class="stars">●●●</td></tr>
+          <tr><td><strong>Haut-parleur + micro</strong></td><td>sonar FMCW 18–20,5 kHz : déplacement du thorax au millimètre, sans contact</td><td>expérimental</td><td>fiable</td><td class="stars">●●●</td></tr>
+          <tr><td><strong>Micro</strong></td><td>ronflements, toux, paroles, bruit de la chambre</td><td>oui</td><td>oui, écran éteint</td><td class="stars">●●○</td></tr>
+          <tr><td><strong>Caméra TrueDepth</strong></td><td>profondeur infrarouge dans le noir → mouvement du thorax</td><td>non</td><td>oui, écran allumé</td><td class="stars">●●○</td></tr>
+          <tr><td>LiDAR arrière</td><td>idem à plus longue portée, mais ARKit veut de la lumière</td><td>non</td><td>oui</td><td class="stars">●○○</td></tr>
+          <tr><td>Caméra + flash</td><td>pouls au bout du doigt au réveil (variabilité cardiaque)</td><td>possible</td><td>oui</td><td class="stars">●○○</td></tr>
+          <tr><td>Lumière, baromètre, radio Wi-Fi/UWB</td><td>aucune API utile, ou rien à mesurer</td><td>non</td><td>non</td><td class="stars">○○○</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="three">
+      <div class="place"><h3>Sur le matelas</h3><div><span class="pill ok">web</span><span class="pill ok">natif</span></div><p>À plat sous le drap-housse ou l'oreiller, au niveau de la poitrine. Respiration, pouls, mouvements. C'est le mode principal.</p></div>
+      <div class="place"><h3>Table de nuit, sonar</h3><div><span class="pill exp">web expérimental</span><span class="pill ok">natif</span></div><p>Bas de l'iPhone tourné vers soi, à moins d'1 m. Respiration et mouvements sans contact, et le pouls de près. Même principe qu'ApneaApp (Univ. Washington).</p></div>
+      <div class="place"><h3>Support, TrueDepth</h3><div><span class="pill exp">natif expérimental</span></div><p>Écran face au lit, à 0,5–1 m. La carte de profondeur infrarouge suit le thorax dans le noir complet. L'écran reste allumé.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="read">
+      <div class="eyebrow">Expérience 1 · matelas</div>
+      <h2>La respiration est facile, le pouls dépend du placement</h2>
+      <p>Les signaux iPhone sont simulés à partir de vraies nuits : la respiration vient des ceintures thoraciques et les battements de l'ECG. Un modèle physique du matelas les transforme, avec le bruit des capteurs. On fait ensuite varier deux choses : à quel point le matelas s'incline à chaque respiration, et la force de la secousse cardiaque qui parvient au téléphone.</p>
+    </div>
+    <div class="two">
+      <figure class="figure" style="margin:0"><div class="eyebrow">Erreur fréquence respiratoire · resp/min</div><svg class="chart" id="heat-rr" viewBox="0 0 420 300"></svg></figure>
+      <figure class="figure" style="margin:0"><div class="eyebrow">Erreur fréquence cardiaque · bpm</div><svg class="chart" id="heat-hr" viewBox="0 0 420 300"></svg></figure>
+    </div>
+    <div class="read" id="snr-text"></div>
+  </section>
+
+  <section>
+    <div class="read">
+      <div class="eyebrow">Expérience 2 · sonar</div>
+      <h2>Le sonar suit la poitrine à distance</h2>
+      <p>Le haut-parleur émet des chirps de 21 ms qui balaient 18 à 20,5 kHz ; le micro capte leurs échos. Une respiration de 5 mm fait tourner la phase de l'écho de près de 3,5 radians : c'est un détecteur de déplacement très sensible. La simulation reprend la respiration et les battements réels de 5 nuits. Elle ajoute le fouillis de la chambre (murs, meubles, lit), une couette qui atténue de 10 dB et le bruit du micro.</p>
+    </div>
+    <figure class="figure" style="margin:0">
+      <div class="scroll"><svg class="chart" id="sonar" viewBox="0 0 960 300"></svg></div>
+      <div class="legend" id="sonar-legend"></div>
+    </figure>
+    <div class="read" id="sonar-text"></div>
+  </section>
+
+  <section>
+    <div class="read">
+      <div class="eyebrow">Expérience 3 · stades</div>
+      <h2>Quatre stades, estimés honnêtement</h2>
+      <p id="stage-intro"></p>
+    </div>
+    <div class="two">
+      <figure class="figure" style="margin:0"><div class="eyebrow">κ de Cohen, 4 stades · validation croisée par nuit</div><svg class="chart" id="ablation" viewBox="0 0 480 330"></svg></figure>
+      <figure class="figure" style="margin:0"><div class="eyebrow">Confusion de l'ensemble iPhone · lignes = 100 %</div><svg class="chart" id="confusion" viewBox="0 0 420 330"></svg></figure>
+    </div>
+    <div class="read" id="stage-text"></div>
+    <div class="read" id="holdout-text"></div>
+  </section>
+
+  <section>
+    <div class="read">
+      <div class="eyebrow">Expérience 4 · apnées</div>
+      <h2>Un signal d'alerte pour l'apnée du sommeil</h2>
+      <p id="apnea-intro"></p>
+    </div>
+    <figure class="figure" style="margin:0"><div class="scroll"><svg class="chart" id="apnea" viewBox="0 0 960 320"></svg></div></figure>
+  </section>
+
+  <section>
+    <div class="read">
+      <div class="eyebrow">Essais et erreurs</div>
+      <h2>Ce que les échecs ont appris</h2>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Essai</th><th>Constat</th><th>Décision</th></tr></thead>
+        <tbody>
+          <tr><td>ACP directe sur les 6 canaux de mouvement</td><td>Les axes de l'accéléromètre, plus bruités, dominaient : <span class="mono">5,8</span> resp/min d'erreur à 0,03°.</td><td>Diviser chaque canal par son bruit : <span class="mono">0,8</span> resp/min. Le gyroscope porte l'essentiel.</td></tr>
+          <tr><td>Pouls du sonar en bande 0,8–3 Hz</td><td>Les harmoniques de la respiration (5 mm) écrasent le battement (0,3 mm).</td><td>Enveloppe d'énergie 3–10 Hz, comme pour le BCG : de 0–80 % à 98–100 % des époques à ±3 bpm.</td></tr>
+          <tr><td>Lissage par modèle de Markov après les arbres</td><td>Les fenêtres de contexte se recouvrent : la même évidence compte deux fois.</td><td>GRU bidirectionnel sur toute la nuit, moyenné avec les arbres.</td></tr>
+          <tr><td>Variabilité cardiaque battement par battement</td><td>Avec un ECG parfait, le gain n'est que de <span class="mono">+0,01</span> de κ.</td><td>Garder la fréquence cardiaque toutes les 5 s, plus robuste.</td></tr>
+          <tr><td>Mouvements des PSG lus dans le bruit de l'ECG</td><td>Ce bruit trahit le tonus musculaire, qu'un téléphone ne voit pas.</td><td>Écarté pour ne pas gonfler les résultats.</td></tr>
+          <tr><td>Respiration en direct sur 40 s</td><td>La dérive du gyroscope intégré donnait 7/min au lieu de 15.</td><td>Bande resserrée 0,13–0,7 Hz pour l'affichage en direct : 15,0/min stable.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="read">
+      <div class="eyebrow">Construit</div>
+      <h2>Ce qui existe dans le dépôt</h2>
+      <ul class="plain">
+        <li><strong>Application web pour Safari</strong> (<code>sommeil/web</code>). Vérification du placement en direct, nuit en écran noir, analyse sur l'iPhone, rapport, historique, export. Elle propose aussi un réveil intelligent, le sonar en option et des extraits sonores à réécouter. Rien à installer.</li>
+        <li><strong>Application iOS native</strong> (<code>sommeil/ios</code>, SwiftUI). Elle fonctionne écran éteint, avec CoreMotion à 100 Hz, un sonar fiable, la caméra TrueDepth et l'écriture des phases dans Apple Santé. Elle exécute le même code JavaScript que l'app web. Non compilée ici : il faut un Mac avec Xcode.</li>
+        <li><strong>Bibliothèque d'analyse</strong> (<code>sommeil/analysis/somno</code>). Respiration, BCG, mouvements, sonar, apnées, modèle de stades, simulateur physique et lecture des exports <code>.somno</code>.</li>
+        <li><strong>Tests de parité</strong> : Python, JavaScript, AudioWorklet et le script JavaScriptCore de l'app iOS donnent les mêmes chiffres. Un test de bout en bout dans Chromium couvre la vérification, l'enregistrement, l'analyse d'une nuit simulée de 2 h 30 et l'export.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="read">
+      <div class="eyebrow">Limites</div>
+      <h2>Ce que ces chiffres ne disent pas</h2>
+      <ul class="plain" id="limits">
+        <li><strong>Pas encore de vraie nuit sur un vrai iPhone.</strong> Les nuits et les annotations sont réelles. En revanche, le passage par le matelas est simulé. Il faut donc d'abord enregistrer quelques nuits et vérifier le signal en direct.</li>
+        <li><strong>Population difficile :</strong> patients de laboratoire du sommeil, souvent apnéiques. Chez un dormeur en bonne santé, les stades sont plus faciles à estimer.</li>
+        <li><strong>L'éveil est le point faible.</strong> Dans les PSG, les mouvements ne se voient que par les artefacts des ceintures. Un vrai accéléromètre de lit en sentira davantage.</li>
+        <li><strong>Safari</strong> laisse l'écran allumé et peut arrondir les capteurs. L'écran de vérification mesure le pas réel. Avec un arrondi à 0,1 m/s², le pouls devient inutilisable.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="read">
+      <div class="eyebrow">Ce soir</div>
+      <h2>Essayer</h2>
+      <ol class="steps">
+        <li><span>Publier <code>sommeil/web</code> en HTTPS, par exemple avec GitHub Pages sur la branche principale. Puis l'ouvrir dans Safari sur l'iPhone.</span></li>
+        <li><span><strong>Tester le placement</strong> : allongé, l'iPhone sous le drap au niveau de la poitrine, attendre ✓ respiration et ✓ battements.</span></li>
+        <li><span>Chargeur branché, Ne pas déranger, luminosité au minimum, <strong>Démarrer l'enregistrement</strong>.</span></li>
+        <li><span>Au réveil, maintenir le bouton pour terminer et lire le rapport. Pour comparer ou améliorer l'analyse, exporter le <code>.somno</code>.</span></li>
+      </ol>
+      <p class="note" style="margin-top:16px">Prototype personnel, pas un dispositif médical. Ronflements forts, pauses respiratoires ou somnolence le jour : consulter un médecin.</p>
+    </div>
+  </section>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script id="data" type="application/json">__DATA__</script>
+<script>
+(function () {
+  const D = JSON.parse(document.getElementById('data').textContent);
+  const NS = 'http://www.w3.org/2000/svg';
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const fr = (x, d = 1) => Number(x).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
+  const pct = (x) => Math.round(x * 100) + ' %';
+  const el = (svg, tag, attrs, text) => {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    svg.appendChild(e);
+    return e;
+  };
+  const tip = document.getElementById('tip');
+  const hover = (node, text) => {
+    node.addEventListener('pointermove', (e) => { tip.hidden = false; tip.textContent = text; tip.style.left = (e.clientX + 12) + 'px'; tip.style.top = (e.clientY + 12) + 'px'; });
+    node.addEventListener('pointerleave', () => { tip.hidden = true; });
+  };
+  const STAGE = ['--wake', '--light', '--deep', '--rem'];
+  const STAGE_N = ['Éveil', 'Léger', 'Profond', 'REM'];
+  const ROW = [0, 2, 3, 1];
+
+  function hero() {
+    const svg = document.getElementById('hero');
+    const ex = D.example;
+    document.getElementById('hero-cap').textContent = `Nuit médiane · κ = ${fr(ex.kappa, 2)} · ${fr(ex.truth.length / 120, 1)} h · époques de 30 s`;
+    const L = 74, R = 950, n = ex.truth.length, dx = (R - L) / n;
+    [['PSG', ex.truth, 10], ['iPhone', ex.pred, 135]].forEach(([lab, arr, y0]) => {
+      el(svg, 'text', { x: 0, y: y0 + 12, class: 'lab', style: 'font-weight:600' }, lab);
+      ['Éveil', 'REM', 'Léger', 'Profond'].forEach((s, r) => {
+        el(svg, 'text', { x: 0, y: y0 + 32 + r * 21, style: 'font-size:10px' }, s);
+        el(svg, 'line', { x1: L, x2: R, y1: y0 + 28 + r * 21, y2: y0 + 28 + r * 21, stroke: css('--grid') });
+      });
+      arr.forEach((s, i) => {
+        if (s < 0) return;
+        const r = ROW[s];
+        const b = el(svg, 'rect', { x: L + i * dx, y: y0 + 21 + r * 21, width: Math.max(dx, 0.8), height: 14, fill: `var(${STAGE[s]})`, class: 'hyp-bar' });
+        if (i % 4 === 0) hover(b, `${lab} · ${fr(i / 120, 2)} h · ${STAGE_N[s]}`);
+      });
+    });
+    for (let h = 0; h <= n / 120; h++) {
+      el(svg, 'text', { x: L + h * 120 * dx, y: 246, 'text-anchor': 'middle' }, h + ' h');
+    }
+  }
+
+  function tiles() {
+    const t = D.tiles;
+    document.getElementById('tiles').innerHTML = t.map((x) => `<div class="tile"><div class="big">${x.big}<small>${x.unit || ''}</small></div><p>${x.text}</p></div>`).join('');
+  }
+
+  function heat(id, grid, tilts, bcgs, vmax, unit) {
+    const svg = document.getElementById(id);
+    const L = 64, T = 10, W = 340, H = 220, cw = W / bcgs.length, ch = H / tilts.length;
+    const lo = css('--heat-lo'), hi = css('--heat-hi');
+    const mix = (a) => `color-mix(in srgb, ${hi} ${Math.round((1 - Math.min(1, a / vmax)) * 100)}%, ${lo})`;
+    tilts.forEach((tt, i) => {
+      const y = T + (tilts.length - 1 - i) * ch;
+      el(svg, 'text', { x: L - 8, y: y + ch / 2 + 4, 'text-anchor': 'end' }, fr(tt, tt < 0.1 ? 2 : 1) + '°');
+      bcgs.forEach((b, j) => {
+        const v = grid[i][j];
+        const r = el(svg, 'rect', { x: L + j * cw + 1, y: y + 1, width: cw - 2, height: ch - 2, rx: 4, fill: v == null ? css('--grid') : mix(v) });
+        if (v != null) {
+          const dark = v < vmax * 0.45;
+          el(svg, 'text', { x: L + j * cw + cw / 2, y: y + ch / 2 + 4, 'text-anchor': 'middle', class: 'val', style: `fill:${dark ? '#ffffff' : css('--ink')}` }, fr(v, 1));
+          hover(r, `inclinaison ${tt}° · BCG ${b} mg → erreur ${fr(v, 2)} ${unit}`);
+        }
+      });
+    });
+    bcgs.forEach((b, j) => el(svg, 'text', { x: L + j * cw + cw / 2, y: T + H + 16, 'text-anchor': 'middle' }, fr(b, b < 1 ? 1 : 0) + ' mg'));
+    el(svg, 'text', { x: L + W / 2, y: T + H + 36, 'text-anchor': 'middle', class: 'lab' }, 'secousse cardiaque perçue par l\'iPhone');
+    el(svg, 'text', { x: 12, y: T + H / 2, 'text-anchor': 'middle', class: 'lab', transform: `rotate(-90 12 ${T + H / 2})` }, 'inclinaison du matelas');
+  }
+
+  function sonar() {
+    const svg = document.getElementById('sonar');
+    const S = D.sonar;
+    const panels = [['rr', 'Respiration · époques à ±1 resp/min'], ['hr', 'Pouls · époques à ±3 bpm']];
+    const cols = ['--iphone', '--third', '--psg'];
+    panels.forEach(([key, title], p) => {
+      const L = 50 + p * 480, T = 28, W = 400, H = 220;
+      el(svg, 'text', { x: L, y: 14, class: 'lab', style: 'font-weight:600' }, title);
+      [0, 25, 50, 75, 100].forEach((v) => {
+        const y = T + H - (v / 100) * H;
+        el(svg, 'line', { x1: L, x2: L + W, y1: y, y2: y, stroke: css('--grid') });
+        el(svg, 'text', { x: L - 6, y: y + 4, 'text-anchor': 'end' }, v + ' %');
+      });
+      const xs = S.dists, X = (d) => L + ((d - xs[0]) / (xs[xs.length - 1] - xs[0])) * W;
+      xs.forEach((d) => el(svg, 'text', { x: X(d), y: T + H + 18, 'text-anchor': 'middle' }, fr(d, 1) + ' m'));
+      S.series.forEach((s, k) => {
+        const pts = s[key].map((v, i) => [X(xs[i]), T + H - (v / 100) * H]);
+        el(svg, 'polyline', { points: pts.map((q) => q.join(',')).join(' '), fill: 'none', stroke: `var(${cols[s.c]})`, 'stroke-width': 2, 'stroke-dasharray': s.blanket ? '6 4' : '' });
+        pts.forEach((q, i) => {
+          const c = el(svg, 'circle', { cx: q[0], cy: q[1], r: 4.5, fill: `var(${cols[s.c]})`, stroke: css('--panel'), 'stroke-width': 2 });
+          hover(c, `${s.label} · ${fr(xs[i], 1)} m → ${Math.round(s[key][i])} %`);
+        });
+      });
+    });
+    document.getElementById('sonar-legend').innerHTML = S.series.map((s) => `<span><i style="background:var(${cols[s.c]});${s.blanket ? 'opacity:.55' : ''}"></i>${s.label}</span>`).join('');
+  }
+
+  function ablation() {
+    const svg = document.getElementById('ablation');
+    const rows = D.ablation, L = 190, W = 260, T = 6, bh = 22, gap = 12;
+    const max = Math.max(...rows.map((r) => r.k)) * 1.15;
+    rows.forEach((r, i) => {
+      const y = T + i * (bh + gap);
+      el(svg, 'text', { x: L - 8, y: y + bh / 2 + 4, 'text-anchor': 'end', class: 'lab', style: 'font-size:11.5px' }, r.label);
+      const w = (r.k / max) * W;
+      const b = el(svg, 'rect', { x: L, y, width: w, height: bh, rx: 4, fill: `var(${r.c})` });
+      el(svg, 'text', { x: L + w + 6, y: y + bh / 2 + 4, class: 'val' }, fr(r.k, 2));
+      hover(b, `${r.label} : κ = ${fr(r.k, 3)}${r.acc ? ' · exactitude ' + pct(r.acc) : ''}`);
+    });
+  }
+
+  function confusion() {
+    const svg = document.getElementById('confusion');
+    const C = D.confusion, L = 80, T = 10, s = 66;
+    const lo = css('--heat-lo'), hi = css('--heat-hi');
+    C.forEach((row, i) => {
+      const tot = row.reduce((a, b) => a + b, 0);
+      el(svg, 'text', { x: L - 8, y: T + i * s + s / 2 + 4, 'text-anchor': 'end', class: 'lab' }, STAGE_N[i]);
+      row.forEach((v, j) => {
+        const f = v / tot;
+        const r = el(svg, 'rect', { x: L + j * s + 1, y: T + i * s + 1, width: s - 2, height: s - 2, rx: 5, fill: `color-mix(in srgb, ${hi} ${Math.round(f * 100)}%, ${lo})` });
+        el(svg, 'text', { x: L + j * s + s / 2, y: T + i * s + s / 2 + 4, 'text-anchor': 'middle', class: 'val', style: `fill:${f > 0.5 ? '#ffffff' : css('--ink')}` }, Math.round(f * 100) + ' %');
+        hover(r, `PSG ${STAGE_N[i]} → iPhone ${STAGE_N[j]} : ${Math.round(f * 100)} % (${v.toLocaleString('fr-FR')} époques)`);
+      });
+    });
+    STAGE_N.forEach((n, j) => el(svg, 'text', { x: L + j * s + s / 2, y: T + 4 * s + 16, 'text-anchor': 'middle', class: 'lab' }, n));
+    el(svg, 'text', { x: L + 2 * s, y: T + 4 * s + 36, 'text-anchor': 'middle' }, 'estimé par l\'iPhone →');
+  }
+
+  function apnea() {
+    const svg = document.getElementById('apnea');
+    const A = D.apnea, L = 60, T = 14, W = 860, H = 250;
+    const xmax = Math.max(...A.ahi) * 1.05, ymax = Math.max(...A.est) * 1.08;
+    const X = (v) => L + (v / xmax) * W, Y = (v) => T + H - (v / ymax) * H;
+    for (let v = 0; v <= xmax; v += 10) { el(svg, 'line', { x1: X(v), x2: X(v), y1: T, y2: T + H, stroke: css('--grid') }); el(svg, 'text', { x: X(v), y: T + H + 16, 'text-anchor': 'middle' }, v); }
+    const ystep = ymax > 40 ? 10 : 5;
+    for (let v = 0; v <= ymax; v += ystep) el(svg, 'text', { x: L - 8, y: Y(v) + 4, 'text-anchor': 'end' }, v);
+    const m = Math.min(xmax, ymax);
+    el(svg, 'line', { x1: X(0), x2: X(m), y1: Y(0), y2: Y(m), stroke: css('--ink-3'), 'stroke-width': 1 });
+    el(svg, 'line', { x1: X(15), x2: X(15), y1: T, y2: T + H, stroke: `var(--psg)`, 'stroke-dasharray': '5 4' });
+    el(svg, 'line', { x1: L, x2: L + W, y1: Y(15), y2: Y(15), stroke: `var(--psg)`, 'stroke-dasharray': '5 4' });
+    el(svg, 'text', { x: X(15) + 6, y: T + 12, style: `fill:var(--psg)` }, 'IAH 15 : apnée modérée');
+    A.ahi.forEach((a, i) => {
+      const c = el(svg, 'circle', { cx: X(a), cy: Y(A.est[i]), r: 4.5, fill: `var(--iphone)`, 'fill-opacity': 0.75, stroke: css('--panel'), 'stroke-width': 1.5 });
+      hover(c, `IAH PSG ${fr(a, 1)} /h · estimé ${fr(A.est[i], 1)} /h`);
+    });
+    el(svg, 'text', { x: L + W / 2, y: T + H + 36, 'text-anchor': 'middle', class: 'lab' }, 'IAH mesuré en polysomnographie (événements par heure)');
+    el(svg, 'text', { x: 14, y: T + H / 2, 'text-anchor': 'middle', class: 'lab', transform: `rotate(-90 14 ${T + H / 2})` }, 'IAH estimé par l\'iPhone');
+  }
+
+  function texts() {
+    for (const [id, html] of Object.entries(D.texts)) { const e = document.getElementById(id); if (e) e.innerHTML = html; }
+  }
+
+  function render() {
+    for (const id of ['hero', 'heat-rr', 'heat-hr', 'sonar', 'ablation', 'confusion', 'apnea']) document.getElementById(id).innerHTML = '';
+    hero(); tiles(); texts();
+    heat('heat-rr', D.snr.rr, D.snr.tilts, D.snr.bcgs, 6, 'resp/min');
+    heat('heat-hr', D.snr.hr, D.snr.tilts, D.snr.bcgs, 15, 'bpm');
+    sonar(); ablation(); confusion(); apnea();
+  }
+  render();
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render);
+  new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+})();
+</script>

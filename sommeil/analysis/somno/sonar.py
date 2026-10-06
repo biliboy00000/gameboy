@@ -180,12 +180,13 @@ def to_resp_channels(disp, fs_f=FRAME_RATE):
 
 
 def heart_from_displacement(disp, fs_f=FRAME_RATE):
-    """FC depuis le déplacement thoracique (composante 0,8–3 Hz), via le même suivi
-    par autocorrélation que le BCG."""
+    """FC depuis le déplacement thoracique. Les battements sont des secousses brèves
+    (quelques dizaines de ms) : on suit l'enveloppe d'énergie 3–10 Hz, comme pour le BCG,
+    là où les harmoniques de la respiration (< 2 Hz) ne gênent plus. Sur 3 nuits réelles
+    simulées à 0,8 m : 98–100 % des époques à ±3 bpm, contre 0–80 % en bande 0,8–3 Hz."""
     from . import heart
-    x = dsp.filtfilt(disp, fs_f, lo=0.8, hi=3.0, order=2)
-    x = dsp.resample_linear(x, fs_f, heart.FS_ENV)
-    acf, _, centers, lag_min = heart.windowed_acf(x[:, None])
+    env = heart.bcg_envelopes(np.asarray(disp, dtype=np.float64)[:, None], fs_f, lo=3.0, hi=10.0)
+    acf, _, centers, lag_min = heart.windowed_acf(env)
     hr, q = heart.track_hr(acf, lag_min)
     return centers, hr, q
 

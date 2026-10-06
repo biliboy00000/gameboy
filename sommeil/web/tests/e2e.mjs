@@ -53,7 +53,7 @@ await page.addInitScript(() => {
       const ev = new DeviceMotionEvent('devicemotion', {
         accelerationIncludingGravity: { x: 9.81 * tilt + n(), y: n(), z: 9.81 + bcg + n() },
         acceleration: { x: 0, y: 0, z: 0 },
-        rotationRate: { alpha: n() * 5, beta: (0.003 * 2 * Math.PI * 0.25 * Math.cos(2 * Math.PI * 0.25 * t)) * 57.3 + bcg * 30, gamma: n() * 5 },
+        rotationRate: { alpha: n() * 5, beta: (0.003 * 2 * Math.PI * 0.25 * Math.cos(2 * Math.PI * 0.25 * t)) * 57.3 + bcg * 5, gamma: n() * 5 },
         interval: 16.7,
       });
       window.dispatchEvent(ev);
@@ -69,7 +69,7 @@ if (ONLY !== 'analysis') {
 await page.click('button[data-go=setup]');
 await page.evaluate(() => window.__motion(true));
 await page.click('#btn-check');
-await page.waitForTimeout(42000);
+await page.waitForTimeout(50000);
 const chk = await page.evaluate(() => ({ rate: document.querySelector('#chk-rate').textContent, rr: document.querySelector('#chk-rr').textContent, hr: document.querySelector('#chk-hr').textContent, msg: document.querySelector('#check-msg').textContent }));
 console.log('vérification :', chk);
 if (!(Number(chk.rr) >= 13 && Number(chk.rr) <= 17)) fail(`respiration en direct ${chk.rr} (attendu ≈ 15)`);
@@ -90,6 +90,11 @@ console.log('enregistrement :', rec);
 if (rec.motion < 1) fail('aucun bloc de mouvement stocké');
 if (rec.audio < 0) fail('sons non stockés');
 await page.screenshot({ path: join(SHOTS, 'app-nuit.png') });
+// fin de nuit par appui long : enregistrement trop court → message attendu
+await page.tap?.('#night').catch(() => {});
+await page.dispatchEvent('#btn-stop', 'pointerdown');
+await page.waitForFunction(() => /trop court/.test(document.querySelector('#toast').textContent), null, { timeout: 30000 });
+console.log('arrêt par appui long : OK (nuit trop courte signalée)');
 await page.evaluate(() => window.__motion(false));
 }
 
@@ -117,7 +122,7 @@ await Promise.race([
   page.waitForFunction(() => !document.querySelector('#toast').classList.contains('hidden'), null, { timeout: 180000 })
     .then(async () => { throw new Error('toast : ' + await page.textContent('#toast')); }),
 ]);
-console.log(`analyse de 2 h 30 : ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+console.log(`analyse de la nuit injectée : ${((Date.now() - t0) / 1000).toFixed(1)} s`);
 await page.waitForTimeout(500);
 const repInfo = await page.evaluate(() => document.querySelector('#rep-body').innerText.slice(0, 600));
 console.log(repInfo);
@@ -139,7 +144,7 @@ else {
 await page.evaluate(() => { navigator.canShare = () => false; });
 await page.click('#btn-export');
 const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[data-x=raw]')]);
-const rawPath = join(SHOTS, 'e2e-export.somno');
+const rawPath = join(process.env.TMPDIR || '/tmp', 'e2e-export.somno');
 await dl.saveAs(rawPath);
 console.log('export .somno :', rawPath);
 await page.click('button[data-go=history]').catch(() => {});

@@ -2,9 +2,9 @@
 import * as store from './storage.js';
 import {
   phoneFeatures, assemble, analyzeResp, respChannelsFromSignal, hrEpochFeatures, windowedAcf,
-  trackHr, relativeActivity, movEpochFeatures, EPOCH_S, FS_ENV,
+  trackHr, relativeActivity, movEpochFeatures, bcgEnvelopes, EPOCH_S,
 } from './analysis.js';
-import { filtfilt, resampleLinear, median, percentile, mean } from './dsp.js';
+import { median, percentile, mean } from './dsp.js';
 import { predictProba, argmax } from './model.js';
 import { predictSeq } from './seqmodel.js';
 import { detectEvents, rdi } from './apnea.js';
@@ -16,6 +16,25 @@ let modelCache = null;
 export async function loadModel() {
   if (!modelCache) modelCache = await (await fetch(new URL('../model/staging.json', import.meta.url))).json();
   return modelCache;
+}
+
+let apneaCache = null;
+async function loadApneaModel() {
+  if (!apneaCache) {
+    try { apneaCache = await (await fetch(new URL('../model/apnea.json', import.meta.url))).json(); } catch { apneaCache = false; }
+  }
+  return apneaCache;
+}
+
+/** Indice d'apnées-hypopnées estimé : probabilité moyenne qu'une époque de sommeil contienne
+ *  un événement (classifieur appris sur 300 PSG), ×120, calibrée linéairement vers l'IAH. */
+export function apneaIndex(model, feats, hyp) {
+  const X = hyp.map((_, i) => model.features.map((n) => feats[n]?.[i]));
+  const P = predictProba(model, X).map((p) => p[1]);
+  const sl = P.filter((_, i) => hyp[i] > 0);
+  if (!sl.length) return { index: 0, p: P };
+  const raw = (sl.reduce((a, b) => a + b, 0) / sl.length) * 120;
+  return { index: Math.max(0, model.calib[0] * raw + model.calib[1]), p: P };
 }
 
 /** Probabilités des 4 stades : moyenne arbres boostés + GRU bidirectionnel. */
@@ -149,14 +168,12 @@ export function audioEpochs(audio, nEp, breathRate) {
 function sonarFeatures(sonar, nEp) {
   const rc = respChannelsFromSignal(sonar.disp, sonar.frameRate);
   const resp = analyzeResp(rc);
-  // FC depuis le déplacement thoracique 0,8–3 Hz
-  let x = filtfilt(sonar.disp, sonar.frameRate, 0.8, 3.0, 2);
-  x = resampleLinear(x, sonar.frameRate, FS_ENV);
-  const { acf, centers, lagMin } = windowedAcf([x]);
+  // FC : enveloppe d'énergie 3–10 Hz du déplacement (secousses cardiaques brèves), comme le BCG
+  const env = bcgEnvelopes([sonar.disp], sonar.frameRate, 3.0, 10.0);
+  const { acf, centers, lagMin } = windowedAcf(env);
   const { hr, q } = trackHr(acf, lagMin);
   const hF = hrEpochFeatures(Float64Array.from(centers), hr, q, nEp);
   // mouvement : variation du profil de distance par seconde
-  const fr = Math.round(sonar.frameRate);
   const ns = Math.floor(sonar.act.length / sonar.frameRate);
   const actS = new Float64Array(ns);
   for (let s = 0; s < ns; s++) {
@@ -166,7 +183,7 @@ function sonarFeatures(sonar, nEp) {
   }
   const rel = relativeActivity(actS);
   const { F: mF, moving } = movEpochFeatures(rel, nEp);
-  return { resp, hF, mF, moving, hr: { centers, hr, q }, fr };
+  return { resp, hF, mF, moving, hr: { centers, hr, q } };
 }
 
 export async function analyzeNight(id, onProgress = () => {}) {
@@ -226,7 +243,14 @@ export async function analyzeNight(id, onProgress = () => {}) {
   const resp = rdi(events, sleepMask);
 
   const m = metrics(hyp, feats, aud, night, onset, last);
-  m.rdi = resp.rdi; m.respEvents = resp.n;
+  m.dropIndex = resp.rdi; m.respEvents = resp.n;
+  const apModel = await loadApneaModel();
+  let apneaP = null;
+  if (apModel) {
+    const a = apneaIndex(apModel, feats, hyp);
+    m.ahiEst = a.index;
+    apneaP = a.p;
+  }
   const clips = await store.getClips(id);
   const report = {
     version: 1, id, start: night.start, end: night.end, nEp, hyp, proba: Ps.map((p) => p.map((v) => +v.toFixed(3))),
@@ -237,6 +261,7 @@ export async function analyzeNight(id, onProgress = () => {}) {
       mov: Array.from(feats.mov_frac, (v) => +v.toFixed(3)),
       snore: aud ? aud.epochs.map((a) => (a?.snore ? 1 : 0)) : null,
       db: aud ? aud.epochs.map((a) => (a ? +a.db.toFixed(1) : null)) : null,
+      apnea: apneaP ? apneaP.map((v) => +v.toFixed(3)) : null,
     },
     events: events.map(([s, e, d]) => [Math.round(s), Math.round(e), +d.toFixed(2)]),
     clips: clips.map((c) => ({ t: c.t, rate: c.rate, n: c.data.length })),

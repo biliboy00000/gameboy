@@ -18,9 +18,9 @@ STEP_S = 5.0     # pas → une estimation toutes les 5 s
 HR_MIN, HR_MAX = 38.0, 150.0
 
 
-def bcg_envelopes(motion, fs):
+def bcg_envelopes(motion, fs, lo=4.0, hi=12.0):
     """motion (n,c) : canaux normalisés (acc en m/s², gyro en rad/s) → enveloppes (m,c)."""
-    x = dsp.filtfilt(motion, fs, lo=4.0, hi=min(12.0, 0.45 * fs), order=2)
+    x = dsp.filtfilt(motion, fs, lo=lo, hi=min(hi, 0.45 * fs), order=2)
     e = dsp.filtfilt(x * x, fs, hi=2.5, order=2)
     e = dsp.resample_linear(e, fs, FS_ENV)
     med = np.median(np.abs(e), axis=0)

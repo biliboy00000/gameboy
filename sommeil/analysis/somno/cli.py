@@ -40,7 +40,16 @@ def analyze(path, model_path=DEFAULT_MODEL):
     hyp = P.argmax(1)
     ev = apnea.detect_events(sig["resp_wave"], sig["moving"])
     idx_rdi, n_ev = apnea.rdi(ev, hyp > 0)
-    return dict(meta=d["meta"], X=X, names=names, P=P, hyp=hyp, sig=sig, events=ev, rdi=idx_rdi, n_events=n_ev)
+    ahi_est = None
+    ap_path = os.path.join(os.path.dirname(model_path), "apnea.json")
+    if os.path.exists(ap_path):
+        am = json.load(open(ap_path))
+        pa = M.predict_json(am, X[:, [names.index(c) for c in am["features"]]])[:, 1]
+        sl = hyp > 0
+        if sl.any():
+            ahi_est = max(0.0, am["calib"][0] * pa[sl].mean() * 120 + am["calib"][1])
+    return dict(meta=d["meta"], X=X, names=names, P=P, hyp=hyp, sig=sig, events=ev, rdi=idx_rdi, n_events=n_ev,
+                ahi_est=ahi_est)
 
 
 def plot(res, out):
@@ -55,7 +64,8 @@ def plot(res, out):
     for i, s in enumerate(hyp):
         ax[0].barh(row[s], 30 / 86400, left=matplotlib.dates.date2num(t[i]), color=COLORS[s], height=0.7)
     ax[0].set_yticks([3, 2, 1, 0], ["Éveil", "REM", "Léger", "Profond"])
-    ax[0].set_title(f"Nuit du {t0:%d/%m/%Y} — sommeil {(hyp > 0).sum() / 120:.1f} h, IDR {res['rdi']:.1f}/h")
+    iah = f", IAH estimé {res['ahi_est']:.0f}/h" if res["ahi_est"] is not None else ""
+    ax[0].set_title(f"Nuit du {t0:%d/%m/%Y} — sommeil {(hyp > 0).sum() / 120:.1f} h{iah}")
     ax[1].plot(t, X[:, names.index("rr")], ".", ms=2, color="#5fa8ff")
     ax[1].set_ylabel("resp./min")
     ax[2].plot(t, X[:, names.index("hr")], ".", ms=2, color="#f26d6d")
@@ -78,7 +88,8 @@ def main():
     hyp = res["hyp"]
     print(f"{len(hyp)} époques · sommeil {(hyp > 0).sum() / 2:.0f} min · "
           + " · ".join(f"{n} {(hyp == k).sum() / 2:.0f} min" for k, n in enumerate(M.STAGES4))
-          + f" · IDR {res['rdi']:.1f}/h")
+          + (f" · IAH estimé {res['ahi_est']:.0f}/h" if res["ahi_est"] is not None else "")
+          + f" · chutes d'amplitude {res['rdi']:.1f}/h")
     if a.out:
         plot(res, a.out)
         print("figure :", a.out)
